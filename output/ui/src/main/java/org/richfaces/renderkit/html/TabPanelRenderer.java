@@ -21,6 +21,29 @@
  */
 package org.richfaces.renderkit.html;
 
+import org.ajax4jsf.javascript.JSObject;
+import org.ajax4jsf.model.DataVisitResult;
+import org.ajax4jsf.model.DataVisitor;
+import org.richfaces.cdk.annotations.JsfRenderer;
+import org.richfaces.component.AbstractTab;
+import org.richfaces.component.AbstractTabPanel;
+import org.richfaces.component.AbstractTogglePanel;
+import org.richfaces.component.AbstractTogglePanelItemInterface;
+import org.richfaces.component.AbstractTogglePanelItemVisitor;
+import org.richfaces.component.AbstractTogglePanelTitledItem;
+import org.richfaces.component.util.HtmlUtil;
+import org.richfaces.context.ExtendedPartialViewContext;
+import org.richfaces.renderkit.HtmlConstants;
+import org.richfaces.renderkit.RenderKitUtils;
+
+import javax.faces.application.ResourceDependencies;
+import javax.faces.application.ResourceDependency;
+import javax.faces.component.UIComponent;
+import javax.faces.context.FacesContext;
+import javax.faces.context.ResponseWriter;
+import java.io.IOException;
+import java.util.Map;
+
 import static org.richfaces.component.AbstractTogglePanelTitledItem.HeaderStates.active;
 import static org.richfaces.component.AbstractTogglePanelTitledItem.HeaderStates.disabled;
 import static org.richfaces.component.AbstractTogglePanelTitledItem.HeaderStates.inactive;
@@ -33,27 +56,6 @@ import static org.richfaces.renderkit.HtmlConstants.TBODY_ELEMENT;
 import static org.richfaces.renderkit.HtmlConstants.TD_ELEM;
 import static org.richfaces.renderkit.HtmlConstants.TR_ELEMENT;
 import static org.richfaces.renderkit.RenderKitUtils.renderPassThroughAttributes;
-
-import java.io.IOException;
-import java.util.Map;
-
-import javax.faces.application.ResourceDependencies;
-import javax.faces.application.ResourceDependency;
-import javax.faces.component.UIComponent;
-import javax.faces.context.FacesContext;
-import javax.faces.context.ResponseWriter;
-
-import org.ajax4jsf.javascript.JSObject;
-import org.richfaces.cdk.annotations.JsfRenderer;
-import org.richfaces.component.AbstractTab;
-import org.richfaces.component.AbstractTabPanel;
-import org.richfaces.component.AbstractTogglePanel;
-import org.richfaces.component.AbstractTogglePanelItemInterface;
-import org.richfaces.component.AbstractTogglePanelTitledItem;
-import org.richfaces.component.util.HtmlUtil;
-import org.richfaces.context.ExtendedPartialViewContext;
-import org.richfaces.renderkit.HtmlConstants;
-import org.richfaces.renderkit.RenderKitUtils;
 
 /**
  * @author akolonitsky
@@ -112,9 +114,9 @@ public class TabPanelRenderer extends TogglePanelRenderer {
         writer.endElement(DIV);
     }
 
-    private void writeTabsLine(ResponseWriter w, FacesContext context, UIComponent comp) throws IOException {
+    private void writeTabsLine(final ResponseWriter w, final FacesContext context, UIComponent comp) throws IOException {
         w.startElement(DIV, comp);
-        AbstractTabPanel tabPanel = (AbstractTabPanel) comp;
+        final AbstractTabPanel tabPanel = (AbstractTabPanel) comp;
         if (tabPanel.isHeaderPositionedTop()) {
             w.writeAttribute(CLASS, "rf-tab-hdr-tabline-vis rf-tab-hdr-tabline-top", null);
         } else {
@@ -128,10 +130,33 @@ public class TabPanelRenderer extends TogglePanelRenderer {
 
         writeTopTabFirstSpacer(w, comp);
 
-        for (AbstractTogglePanelItemInterface item : ((AbstractTogglePanel) comp).getRenderedItems()) {
-            AbstractTab tab = (AbstractTab) item;
-            writeTopTabHeader(context, w, tab);
-            writeTopTabSpacer(w, comp);
+
+        if (tabPanel.getValue() != null) {
+            try {
+                DataVisitor visitor = new AbstractTogglePanelItemVisitor(tabPanel, new AbstractTogglePanelItemVisitor.TabVisitorCallback() {
+                    @Override
+                    public DataVisitResult visit(AbstractTogglePanelItemInterface item)
+                    {
+                        AbstractTab tab = (AbstractTab) item;
+                        try {
+                            writeTopTabHeader(context, w, tab);
+                            writeTopTabSpacer(w, tabPanel);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return DataVisitResult.CONTINUE;
+                    }
+                });
+                tabPanel.walk(context, visitor, null);
+            } finally {
+                tabPanel.setRowKey(context, null);
+            }
+        } else {
+            for (AbstractTogglePanelItemInterface item : ((AbstractTogglePanel) comp).getRenderedItems()) {
+                AbstractTab tab = (AbstractTab) item;
+                writeTopTabHeader(context, w, tab);
+                writeTopTabSpacer(w, comp);
+            }
         }
 
         writeTopTabLastSpacer(w, comp);
@@ -246,21 +271,46 @@ public class TabPanelRenderer extends TogglePanelRenderer {
     }
 
     @Override
-    protected void doEncodeEnd(ResponseWriter writer, FacesContext context, UIComponent component) throws IOException {
-        AbstractTabPanel tabPanel = (AbstractTabPanel) component;
+    protected void doEncodeEnd(final ResponseWriter writer, final FacesContext context, UIComponent component) throws IOException
+    {
+        final AbstractTabPanel tabPanel = (AbstractTabPanel) component;
         if (!tabPanel.isHeaderPositionedTop()) {
             writeTabsLineSeparator(writer, component);
             writeTabsLine(writer, context, component);
         }
-        if (tabPanel.getChildCount() > 0) {
-            for (UIComponent child : tabPanel.getChildren()) {
-                if (child instanceof AbstractTab) {
-                    AbstractTab tab = (AbstractTab) child;
-                    TabRenderer renderer = (TabRenderer) tab.getRenderer(context);
-                    renderer.writeJavaScript(writer, context, tab);
+        if (tabPanel.getValue() != null) {
+            try {
+                final DataVisitor visitor = new AbstractTogglePanelItemVisitor(tabPanel, new AbstractTogglePanelItemVisitor.TabVisitorCallback() {
+                    @Override
+                    public DataVisitResult visit(AbstractTogglePanelItemInterface item)
+                    {
+                        AbstractTab tab = (AbstractTab) item;
+                        TabRenderer renderer = (TabRenderer) tab.getRenderer(context);
+                        try {
+                            renderer.writeJavaScript(writer, context, tab);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return DataVisitResult.CONTINUE;
+                    }
+                });
+                tabPanel.walk(context, visitor, null);
+            } finally {
+                tabPanel.setRowKey(context, null);
+            }
+        } else {
+            if (tabPanel.getChildCount() > 0) {
+                for (UIComponent child : tabPanel.getChildren()) {
+                    if (child instanceof AbstractTab) {
+                        AbstractTab tab = (AbstractTab) child;
+                        TabRenderer renderer = (TabRenderer) tab.getRenderer(context);
+                        renderer.writeJavaScript(writer, context, tab);
+                    }
                 }
             }
         }
+
+
         writer.endElement(HtmlConstants.DIV_ELEM);
     }
 

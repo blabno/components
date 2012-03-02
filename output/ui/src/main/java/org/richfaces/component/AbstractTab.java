@@ -21,11 +21,6 @@
  */
 package org.richfaces.component;
 
-import javax.faces.component.UIComponent;
-import javax.faces.component.behavior.ClientBehaviorHolder;
-import javax.faces.context.FacesContext;
-import javax.faces.render.Renderer;
-
 import org.richfaces.cdk.annotations.Attribute;
 import org.richfaces.cdk.annotations.Facet;
 import org.richfaces.cdk.annotations.JsfComponent;
@@ -33,6 +28,12 @@ import org.richfaces.cdk.annotations.JsfRenderer;
 import org.richfaces.cdk.annotations.Tag;
 import org.richfaces.cdk.annotations.TagType;
 import org.richfaces.renderkit.html.DivPanelRenderer;
+
+import javax.faces.FacesException;
+import javax.faces.component.UIComponent;
+import javax.faces.component.behavior.ClientBehaviorHolder;
+import javax.faces.context.FacesContext;
+import javax.faces.render.Renderer;
 
 /**
  * <p>The &lt;rich:tab&gt; component represents an individual tab inside a &lt;rich:tabPanel&gt; component, including
@@ -197,7 +198,11 @@ public abstract class AbstractTab extends AbstractActionComponent implements Abs
     }
 
     public boolean isActive() {
-        return getTabPanel().isActiveItem(this);
+        AbstractTabPanel tabPanel = getTabPanel();
+        if(tabPanel==null) {
+            throw new FacesException("Tab can be nested only inside TabPanel");
+        }
+        return tabPanel.isActiveItem(this);
     }
 
     public boolean shouldProcess() {
