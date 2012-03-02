@@ -21,13 +21,13 @@
  */
 package org.richfaces.component;
 
-import javax.faces.component.UIOutput;
-
 import org.richfaces.cdk.annotations.Attribute;
 import org.richfaces.cdk.annotations.JsfComponent;
 import org.richfaces.cdk.annotations.JsfRenderer;
 import org.richfaces.cdk.annotations.Tag;
 import org.richfaces.cdk.annotations.TagType;
+
+import javax.faces.component.UIComponentBase;
 
 /**
  * <p>The &lt;rich:togglePanelItem&gt; component is a switchable panel for use with the &lt;rich:togglePanel&gt;
@@ -38,7 +38,7 @@ import org.richfaces.cdk.annotations.TagType;
  */
 @JsfComponent(tag = @Tag(type = TagType.Facelets), renderer = @JsfRenderer(type = "org.richfaces.TogglePanelItemRenderer"), attributes = {
         "core-props.xml", "events-mouse-props.xml", "i18n-props.xml" })
-public abstract class AbstractTogglePanelItem extends UIOutput implements AbstractTogglePanelItemInterface {
+public abstract class AbstractTogglePanelItem extends UIComponentBase implements AbstractTogglePanelItemInterface {
     public static final String COMPONENT_TYPE = "org.richfaces.TogglePanelItem";
     public static final String COMPONENT_FAMILY = "org.richfaces.TogglePanelItem";
     protected static final String NAME = "name";

@@ -21,23 +21,15 @@
  */
 package org.richfaces.renderkit.html;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.faces.application.ResourceDependencies;
-import javax.faces.application.ResourceDependency;
-import javax.faces.component.UIComponent;
-import javax.faces.context.FacesContext;
-import javax.faces.context.PartialViewContext;
-import javax.faces.context.ResponseWriter;
-
 import org.ajax4jsf.javascript.JSFunctionDefinition;
 import org.ajax4jsf.javascript.JSObject;
 import org.ajax4jsf.javascript.JSReference;
+import org.ajax4jsf.model.DataVisitResult;
+import org.ajax4jsf.model.DataVisitor;
 import org.richfaces.cdk.annotations.JsfRenderer;
 import org.richfaces.component.AbstractTogglePanel;
 import org.richfaces.component.AbstractTogglePanelItemInterface;
+import org.richfaces.component.AbstractTogglePanelItemVisitor;
 import org.richfaces.component.MetaComponentResolver;
 import org.richfaces.component.util.HtmlUtil;
 import org.richfaces.context.ExtendedPartialViewContext;
@@ -47,6 +39,16 @@ import org.richfaces.renderkit.MetaComponentRenderer;
 import org.richfaces.renderkit.util.AjaxRendererUtils;
 import org.richfaces.renderkit.util.FormUtil;
 import org.richfaces.renderkit.util.HandlersChain;
+
+import javax.faces.application.ResourceDependencies;
+import javax.faces.application.ResourceDependency;
+import javax.faces.component.UIComponent;
+import javax.faces.context.FacesContext;
+import javax.faces.context.PartialViewContext;
+import javax.faces.context.ResponseWriter;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author akolonitsky
@@ -122,9 +124,33 @@ public class TogglePanelRenderer extends DivPanelRenderer implements MetaCompone
     }
 
     @Override
-    protected void doEncodeChildren(ResponseWriter writer, FacesContext context, UIComponent component) throws IOException {
-
-        renderChildren(context, component);
+    protected void doEncodeChildren(final ResponseWriter writer, final FacesContext context, UIComponent component) throws IOException
+    {
+        final AbstractTogglePanel abstractTogglePanel = (AbstractTogglePanel) component;
+        if (abstractTogglePanel.getValue() != null) {
+                    try {
+                        writer.startElement(HtmlConstants.DIV_ELEM, null);
+                        writer.writeAttribute(HtmlConstants.CLASS_ATTRIBUTE, "rf-crl-sl", "class");
+                        DataVisitor visitor = new AbstractTogglePanelItemVisitor(abstractTogglePanel, new AbstractTogglePanelItemVisitor.TabVisitorCallback() {
+                            @Override
+                            public DataVisitResult visit(AbstractTogglePanelItemInterface item)
+                            {
+                                try {
+                                    ((UIComponent) item).encodeAll(context);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                return DataVisitResult.CONTINUE;
+                            }
+                        });
+                        abstractTogglePanel.walk(context, visitor, null);
+                        writer.endElement(HtmlConstants.DIV_ELEM);
+                    } finally {
+                        abstractTogglePanel.setRowKey(context, null);
+                    }
+        } else {
+            renderChildren(context, component);
+        }
     }
 
     @Override

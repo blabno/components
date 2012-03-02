@@ -21,31 +21,9 @@
  */
 package org.richfaces.component;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import javax.el.ELException;
-import javax.el.MethodExpression;
-import javax.el.ValueExpression;
-import javax.faces.application.Application;
-import javax.faces.application.FacesMessage;
-import javax.faces.component.UIComponent;
-import javax.faces.component.UIOutput;
-import javax.faces.component.UpdateModelException;
-import javax.faces.component.visit.VisitCallback;
-import javax.faces.component.visit.VisitContext;
-import javax.faces.component.visit.VisitResult;
-import javax.faces.context.FacesContext;
-import javax.faces.event.AbortProcessingException;
-import javax.faces.event.ExceptionQueuedEvent;
-import javax.faces.event.ExceptionQueuedEventContext;
-import javax.faces.event.FacesEvent;
-import javax.faces.event.PhaseId;
-import javax.faces.event.PostValidateEvent;
-import javax.faces.event.PreValidateEvent;
-
+import com.google.common.base.Strings;
+import org.ajax4jsf.model.DataVisitResult;
+import org.ajax4jsf.model.DataVisitor;
 import org.richfaces.application.FacesMessages;
 import org.richfaces.application.MessageFactory;
 import org.richfaces.application.ServiceTracker;
@@ -64,7 +42,30 @@ import org.richfaces.event.ItemChangeSource;
 import org.richfaces.renderkit.MetaComponentRenderer;
 import org.richfaces.renderkit.util.RendererUtils;
 
-import com.google.common.base.Strings;
+import javax.el.ELException;
+import javax.el.MethodExpression;
+import javax.el.ValueExpression;
+import javax.faces.application.Application;
+import javax.faces.application.FacesMessage;
+import javax.faces.component.UIComponent;
+import javax.faces.component.UpdateModelException;
+import javax.faces.component.visit.VisitCallback;
+import javax.faces.component.visit.VisitContext;
+import javax.faces.component.visit.VisitResult;
+import javax.faces.context.FacesContext;
+import javax.faces.event.AbortProcessingException;
+import javax.faces.event.ExceptionQueuedEvent;
+import javax.faces.event.ExceptionQueuedEventContext;
+import javax.faces.event.FacesEvent;
+import javax.faces.event.PhaseId;
+import javax.faces.event.PostValidateEvent;
+import javax.faces.event.PreValidateEvent;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * <p>The &lt;rich:togglePanel&gt; component is used as a base for the other switchable components, the
@@ -76,7 +77,7 @@ import com.google.common.base.Strings;
  */
 @JsfComponent(tag = @Tag(type = TagType.Facelets, handler = "org.richfaces.view.facelets.html.TogglePanelTagHandler"), renderer = @JsfRenderer(type = "org.richfaces.TogglePanelRenderer"), attributes = {
         "core-props.xml", "events-mouse-props.xml", "i18n-props.xml" })
-public abstract class AbstractTogglePanel extends UIOutput implements AbstractDivPanel, ItemChangeSource,
+public abstract class AbstractTogglePanel extends UIRepeat implements AbstractDivPanel, ItemChangeSource,
         MetaComponentResolver, MetaComponentEncoder {
     public static final String ACTIVE_ITEM_META_COMPONENT = "activeItem";
     public static final String COMPONENT_TYPE = "org.richfaces.TogglePanel";
@@ -90,36 +91,67 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
     private String submittedActiveItem = null;
 
     private enum PropertyKeys {
-        localValueSet, required, valid, immediate, switchType
+        activeItem, localActiveItemSet, required, valid, immediate, switchType
     }
 
     protected AbstractTogglePanel() {
         setRendererType("org.richfaces.TogglePanelRenderer");
+        decodeVisitor = new ComponentVisitor() {
+
+            @Override
+            public void processComponent(FacesContext context, UIComponent c, Object argument)
+            {
+                if (isActiveItem(c) || getSwitchType() == SwitchType.client) {
+                    c.processDecodes(context);
+                }
+            }
+        };
+
+        validateVisitor = new ComponentVisitor() {
+
+            @Override
+            public void processComponent(FacesContext context, UIComponent c, Object argument)
+            {
+                if (isActiveItem(c) || getSwitchType() == SwitchType.client) {
+                    c.processValidators(context);
+                }
+            }
+        };
+        updateVisitor = new ComponentVisitor() {
+
+            @Override
+            public void processComponent(FacesContext context, UIComponent c, Object argument)
+            {
+                if (isActiveItem(c) || getSwitchType() == SwitchType.client) {
+                    c.processUpdates(context);
+                }
+            }
+        };
     }
 
     // -------------------------------------------------- Editable Value Holder
 
-    public Object getSubmittedValue() {
+    public String getSubmittedActiveItem() {
         return this.submittedActiveItem;
     }
 
     public void resetValue() {
         this.setValue(null);
-        this.setSubmittedValue(null);
-        this.setLocalValueSet(false);
+        this.setSubmittedActiveItem(null);
+        this.setLocalActiveItemSet(false);
         this.setValid(true);
     }
 
-    public void setSubmittedValue(Object submittedValue) {
+    public void setSubmittedActiveItem(Object submittedValue) {
         this.submittedActiveItem = String.valueOf(submittedValue);
     }
 
-    public boolean isLocalValueSet() {
-        return (Boolean) getStateHelper().eval(PropertyKeys.localValueSet, false);
+    public boolean isLocalActiveItemSet() {
+        return (Boolean) getStateHelper().eval(PropertyKeys.localActiveItemSet, false);
     }
 
-    public void setLocalValueSet(boolean localValueSet) {
-        getStateHelper().put(PropertyKeys.localValueSet, localValueSet);
+    public void setLocalActiveItemSet(boolean localValueSet) {
+        getStateHelper().put(PropertyKeys.localActiveItemSet, localValueSet);
     }
 
     public boolean isValid() {
@@ -170,9 +202,25 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
         }
 
         if (item == null || !((UIComponent) item).isRendered()) {
-            List<AbstractTogglePanelItemInterface> renderedItems = this.getRenderedItems();
-            if (!renderedItems.isEmpty()) {
-                setActiveItem(renderedItems.get(0).getName());
+            if (getValue() != null) {
+                try {
+                    DataVisitor visitor = new AbstractTogglePanelItemVisitor(this, new AbstractTogglePanelItemVisitor.TabVisitorCallback() {
+                        @Override
+                        public DataVisitResult visit(AbstractTogglePanelItemInterface item)
+                        {
+                                setActiveItem(item.getName());
+                                return DataVisitResult.STOP;
+                        }
+                    });
+                    walk(context, visitor, null);
+                } finally {
+                    setRowKey(context, null);
+                }
+            } else {
+                List<AbstractTogglePanelItemInterface> renderedItems = this.getRenderedItems();
+                if (!renderedItems.isEmpty()) {
+                    setActiveItem(renderedItems.get(0).getName());
+                }
             }
         }
 
@@ -211,7 +259,7 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
                 kid.processDecodes(context);
             }
         }
-
+        super.processDecodes(context);
         // Process this component itself
         try {
             decode(context);
@@ -265,6 +313,8 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
                 kid.processValidators(context);
             }
         }
+//        TODO process validators
+        super.processValidators(context);
         app.publishEvent(context, PostValidateEvent.class, this);
         popComponentFromEL(context);
     }
@@ -302,7 +352,8 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
                 kid.processUpdates(context);
             }
         }
-
+//        TODO processUpdates
+           super.processUpdates(context);
         popComponentFromEL(context);
 
         if (!isValid()) {
@@ -331,11 +382,11 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
             throw new NullPointerException();
         }
 
-        if (!isValid() || !isLocalValueSet()) {
+        if (!isValid() || !isLocalActiveItemSet()) {
             return;
         }
 
-        ValueExpression ve = getValueExpression("value");
+        ValueExpression ve = getValueExpression("activeItem");
         if (ve == null) {
             return;
         }
@@ -344,8 +395,8 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
         FacesMessage message = null;
         try {
             ve.setValue(context.getELContext(), getLocalValue());
-            setValue(null);
-            setLocalValueSet(false);
+            setActiveItem(null);
+            setLocalActiveItemSet(false);
         } catch (ELException e) {
             caught = e;
             String messageStr = e.getMessage();
@@ -380,6 +431,9 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
         }
     }
 
+    @Attribute
+    public abstract Object getLocalValue();
+
     private ItemChangeEvent createItemChangeEvent(FacesContext context) {
         if (context == null) {
             throw new NullPointerException();
@@ -391,7 +445,7 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
             return null;
         }
 
-        String previous = (String) getValue();
+        String previous = getActiveItem();
         if (previous == null || !previous.equalsIgnoreCase(activeItem)) {
             UIComponent prevComp = null;
             UIComponent actvComp = null;
@@ -438,7 +492,7 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
     public void broadcast(FacesEvent event) throws AbortProcessingException {
         FacesContext context = FacesContext.getCurrentInstance();
         if (event instanceof ItemChangeEvent) {
-            setValue(((ItemChangeEvent) event).getNewItemName());
+            setActiveItem(((ItemChangeEvent) event).getNewItemName());
             setSubmittedActiveItem(null);
             if (event.getPhaseId() == PhaseId.UPDATE_MODEL_VALUES) {
                 try {
@@ -499,14 +553,44 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
     }
 
     public AbstractTogglePanelItemInterface getItemByIndex(final int index) {
-        List<AbstractTogglePanelItemInterface> children = getRenderedItems();
-        if (index < 0 || index >= children.size()) {
-            return null;
-        } else if (isCycledSwitching()) {
+//        TODO rewrite this method
+        if(getValue() != null) {
+//            TODO find out smarter way to calculate number of tabs
+            final Map<Integer,Object> index2rowKey = new HashMap<Integer,Object>();
+            final int[] sizeHolder = new int[1];
+            DataVisitor visitor = new AbstractTogglePanelItemVisitor(this, new AbstractTogglePanelItemVisitor.TabVisitorCallback() {
+                @Override
+                public DataVisitResult visit(AbstractTogglePanelItemInterface item)
+                {
+                    index2rowKey.put(sizeHolder[0],getRowKey());
+                    sizeHolder[0]++;
+                    return DataVisitResult.CONTINUE;
+                }
+            });
+            walk(FacesContext.getCurrentInstance(), visitor, null);
+            if (index < 0 || index >= sizeHolder[0]) {
+                return null;
+            }
             int size = getRenderedItems().size();
-            return children.get((size + index) % size);
+            setRowKey(index2rowKey.get((size + index) % size));
+            List<AbstractTogglePanelItemInterface> children = getRenderedItems();
+            int innerIndex = index % size;
+            if (isCycledSwitching()) {
+                size = children.size();
+                return children.get((size + innerIndex) % size);
+            } else {
+                return children.get(innerIndex);
+            }
         } else {
-            return children.get(index);
+            List<AbstractTogglePanelItemInterface> children = getRenderedItems();
+            if (index < 0 || index >= children.size()) {
+                return null;
+            } else if (isCycledSwitching()) {
+                int size = getRenderedItems().size();
+                return children.get((size + index) % size);
+            } else {
+                return children.get(index);
+            }
         }
     }
 
@@ -563,15 +647,34 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
         return getItemByIndex(getRenderedItems().size() - 1);
     }
 
-    public int getChildIndex(String name) {
+    public int getChildIndex(final String name) {
         if (name == null) {
             throw new IllegalArgumentException("Name is required parameter.");
         }
-
-        List<AbstractTogglePanelItemInterface> items = getRenderedItems();
-        for (int ind = 0; ind < items.size(); ind++) {
-            if (name.equals(items.get(ind).getName())) {
-                return ind;
+//        TODO rewrite this
+        if(getValue()!=null) {
+            final int[] indexHodler = new int[] {Integer.MIN_VALUE};
+            final int[] iHodler = new int[1];
+            DataVisitor visitor = new AbstractTogglePanelItemVisitor(this, new AbstractTogglePanelItemVisitor.TabVisitorCallback() {
+                @Override
+                public DataVisitResult visit(AbstractTogglePanelItemInterface item)
+                {
+                        if (name.equals(item.getName())) {
+                            indexHodler[0] = iHodler[0];
+                            return DataVisitResult.STOP;
+                        }
+                    iHodler[0]++;
+                    return DataVisitResult.CONTINUE;
+                }
+            });
+            walk(FacesContext.getCurrentInstance(), visitor, null);
+            return indexHodler[0];
+        } else {
+            List<AbstractTogglePanelItemInterface> items = getRenderedItems();
+            for (int ind = 0; ind < items.size(); ind++) {
+                if (name.equals(items.get(ind).getName())) {
+                    return ind;
+                }
             }
         }
 
@@ -580,35 +683,26 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
 
     // ------------------------------------------------
 
-    public String getSubmittedActiveItem() {
-        return submittedActiveItem;
-    }
-
-    public void setSubmittedActiveItem(String submittedActiveItem) {
+   public void setSubmittedActiveItem(String submittedActiveItem) {
         this.submittedActiveItem = submittedActiveItem;
     }
 
     // ------------------------------------------------ Properties
 
-    @Override
-    @Attribute(hidden = true)
-    public void setValue(Object value) {
-        super.setValue(value);
 
-        setLocalValueSet(true);
-    }
 
     /**
      * Holds the active panel name. This name is a reference to the name identifier of the active child
      * &lt;rich:togglePanelItem&gt; component.
      */
-    @Attribute
-    public String getActiveItem() {
-        return (String) getValue();
+    @Attribute(generate = false)
+    public  String getActiveItem() {
+        return (String) getStateHelper().eval(PropertyKeys.activeItem, null);
     }
 
-    public void setActiveItem(String value) {
-        setValue(value);
+    public void setActiveItem(String activeItem) {
+        getStateHelper().put(PropertyKeys.activeItem, activeItem);
+        setLocalActiveItemSet(true);
     }
 
     @Override
@@ -737,13 +831,17 @@ public abstract class AbstractTogglePanel extends UIOutput implements AbstractDi
             }
 
             if (result == VisitResult.ACCEPT) {
-                Iterator<UIComponent> kids = this.getFacetsAndChildren();
+                if (getValue() != null) {
+                    return super.visitTree(context, callback);
+                } else {
+                    Iterator<UIComponent> kids = this.getFacetsAndChildren();
 
-                while (kids.hasNext()) {
-                    boolean done = kids.next().visitTree(context, callback);
+                    while (kids.hasNext()) {
+                        boolean done = kids.next().visitTree(context, callback);
 
-                    if (done) {
-                        return true;
+                        if (done) {
+                            return true;
+                        }
                     }
                 }
             }
