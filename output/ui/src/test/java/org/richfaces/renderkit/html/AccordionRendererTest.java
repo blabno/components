@@ -1,9 +1,9 @@
 package org.richfaces.renderkit.html;
 
-import java.io.IOException;
-
 import org.junit.Test;
 import org.xml.sax.SAXException;
+
+import java.io.IOException;
 
 public class AccordionRendererTest extends RendererTestBase {
     @Test
@@ -13,7 +13,7 @@ public class AccordionRendererTest extends RendererTestBase {
 
     @Test
     public void testAccordionItem() throws IOException, SAXException {
-        doTest("accordionItem", "f:item");
-        doTest("accordionItem", "accordionItemDisabled", "f:item2");
+        doTest("accordionItem", "f:accordion:item");
+        doTest("accordionItem", "accordionItemDisabled", "f:accordion:item2");
     }
 }

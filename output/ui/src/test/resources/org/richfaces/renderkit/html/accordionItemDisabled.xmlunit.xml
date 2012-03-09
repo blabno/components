@@ -1,5 +1,5 @@
-<div id="f:item2" class="rf-ac-itm">
-    <div class="rf-ac-itm-hdr rf-ac-itm-hdr-dis" id="f:item2:header">
+<div id="f:accordion:item2" class="rf-ac-itm">
+    <div class="rf-ac-itm-hdr rf-ac-itm-hdr-dis" id="f:accordion:item2:header">
         <table class="rf-ac-itm-gr">
             <tbody>
                 <tr>
@@ -12,11 +12,11 @@
             </tbody>
         </table>
     </div>
-    <div class="rf-ac-itm-cnt" id="f:item2:content" style="display: none">
+    <div class="rf-ac-itm-cnt" id="f:accordion:item2:content" style="display: none">
     </div>
     <script type="text/javascript">
         //<![CDATA[
-new RichFaces.ui.AccordionItem("f:item2",{"index":1,"togglePanelId":"f:accordion","switchMode":"ajax","name":"item2","disabled":true} )
+new RichFaces.ui.AccordionItem("f:accordion:item2",{"index":1,"togglePanelId":"f:accordion","switchMode":"ajax","name":"item2","disabled":true} )
 //]]>
     </script>
 </div>

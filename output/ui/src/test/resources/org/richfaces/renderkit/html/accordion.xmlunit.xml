@@ -5,8 +5,8 @@
 new RichFaces.ui.Accordion("f:accordion",{"ajax":{"incId":"1"} ,"activeItem":"item","isKeepHeight":false,"cycledSwitching":false} )
 //]]>
     </script>
-    <div id="f:item" class="rf-ac-itm">
-        <div class="rf-ac-itm-hdr rf-ac-itm-hdr-act" id="f:item:header">
+    <div id="f:accordion:item" class="rf-ac-itm">
+        <div class="rf-ac-itm-hdr rf-ac-itm-hdr-act" id="f:accordion:item:header">
             <table class="rf-ac-itm-gr">
                 <tbody>
                     <tr>
@@ -22,16 +22,16 @@ new RichFaces.ui.Accordion("f:accordion",{"ajax":{"incId":"1"} ,"activeItem":"it
                 </tbody>
             </table>
         </div>
-        <div class="rf-ac-itm-cnt" id="f:item:content">
+        <div class="rf-ac-itm-cnt" id="f:accordion:item:content">
         </div>
         <script type="text/javascript">
             //<![CDATA[
-new RichFaces.ui.AccordionItem("f:item",{"index":0,"togglePanelId":"f:accordion","switchMode":"ajax","name":"item","disabled":false} )
+new RichFaces.ui.AccordionItem("f:accordion:item",{"index":0,"togglePanelId":"f:accordion","switchMode":"ajax","name":"item","disabled":false} )
 //]]>
         </script>
     </div>
-    <div id="f:item2" class="rf-ac-itm">
-        <div class="rf-ac-itm-hdr rf-ac-itm-hdr-dis" id="f:item2:header">
+    <div id="f:accordion:item2" class="rf-ac-itm">
+        <div class="rf-ac-itm-hdr rf-ac-itm-hdr-dis" id="f:accordion:item2:header">
             <table class="rf-ac-itm-gr">
                 <tbody>
                     <tr>
@@ -44,11 +44,11 @@ new RichFaces.ui.AccordionItem("f:item",{"index":0,"togglePanelId":"f:accordion"
                 </tbody>
             </table>
         </div>
-        <div class="rf-ac-itm-cnt" id="f:item2:content" style="display: none">
+        <div class="rf-ac-itm-cnt" id="f:accordion:item2:content" style="display: none">
         </div>
         <script type="text/javascript">
             //<![CDATA[
-new RichFaces.ui.AccordionItem("f:item2",{"index":1,"togglePanelId":"f:accordion","switchMode":"ajax","name":"item2","disabled":true} )
+new RichFaces.ui.AccordionItem("f:accordion:item2",{"index":1,"togglePanelId":"f:accordion","switchMode":"ajax","name":"item2","disabled":true} )
 //]]>
         </script>
     </div>
