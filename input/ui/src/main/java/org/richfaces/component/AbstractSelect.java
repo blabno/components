@@ -34,6 +34,14 @@ public abstract class AbstractSelect extends AbstractSelectComponent {
     public abstract boolean isEnableManualInput();
 
     /**
+     * <p>If "true" options in popup list will be filtered</p>
+     * <p>Default is "true"</p>
+     * @return
+     */
+    @Attribute(defaultValue = "true")
+    public abstract boolean isFilterOptionsOnlistshow();
+
+    /**
      * <p>
      * If "true" as the user types to narrow the list, automatically select the first element in the list.
      * Applicable only when enableManualInput is "true".

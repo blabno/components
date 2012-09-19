@@ -55,6 +55,7 @@
         selectFirst: true,
         showControl: true,
         enableManualInput: false,
+        filterOptionsOnlistshow: true,
         itemCss: "rf-sel-opt",
         selectItemCss: "rf-sel-sel",
         listCss: "rf-sel-lst-cord",
@@ -87,6 +88,10 @@
 
             __onBtnMouseDown: function(e) {
                 if (!this.popupList.isVisible()) {
+                    if (this.options.filterOptionsOnlistshow === false) {
+                        this.recentValue = this.__getValue();
+                        this.__setValue("");
+                    }
                     this.__updateItems();
                     this.__showPopup();
                 } else {
@@ -279,6 +284,9 @@
 
             __hidePopup: function() {
                 this.popupList.hide();
+                if (this.input.val() == '') {
+                    this.__setValue(this.recentValue);
+                }
                 this.invokeEvent.call(this, "listhide", document.getElementById(this.id));
             },
 
